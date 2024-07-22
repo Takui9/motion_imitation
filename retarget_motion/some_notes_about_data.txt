@@ -1,0 +1,14 @@
+# run00: start from 400, running motions, good, can use
+# run01: faster running than 00, can use
+# run02: slower one than 01, can use
+# run04: fast trot, start 480, end 710, slow down to speed 0 in the end
+# pace: short motions, cut in the walk motions
+# trot: very short motions, cut in the walk motions
+# turn00: impossible motions
+# walk01: walk while small turning, start 300, can use
+# walk02:walk while small turning, start 400, can use
+# walk03: stand, trot, pace, walk, low-speed, can include all, scale1.3, can use
+# walk04: invalid sit, trot, 220, None, scale1.3
+# walk05: 200, 550, scale_1.3
+# walk06: include recovery, not good
+# walk09: various motions, turning, walking, but need to delete invalid sit motions, can use

@@ -22,8 +22,9 @@ import pybullet_data as pd
 from motion_imitation.utilities import motion_util
 
 # import retarget_config_a1 as config
-import retarget_config_laikago as config
+# import retarget_config_laikago as config
 # import retarget_config_vision60 as config
+import retarget_config_anymal as config
 
 POS_SIZE = 3
 ROT_SIZE = 4
@@ -33,7 +34,7 @@ FORWARD_DIR = np.array([1, 0, 0])
 GROUND_URDF_FILENAME = "plane_implicit.urdf"
 
 # reference motion
-FRAME_DURATION = 0.01667
+FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 REF_COORD_ROT = transformations.quaternion_from_euler(0.5 * np.pi, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
 REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
@@ -43,21 +44,30 @@ REF_NECK_JOINT_ID = 3
 REF_HIP_JOINT_IDS = [6, 16, 11, 20]
 REF_TOE_JOINT_IDS = [10, 19, 15, 23]
 
-mocap_motions = [
-  ["pace", "data/dog_walk00_joint_pos.txt",162,201],
-  ["trot", "data/dog_walk03_joint_pos.txt",448,481 ],
-  ["trot2", "data/dog_run04_joint_pos.txt",630,663 ],
-  ["canter", "data/dog_run00_joint_pos.txt", 430, 459],
-  ["left turn0", "data/dog_walk09_joint_pos.txt",1085,1124 ],
-  ["right turn0", "data/dog_walk09_joint_pos.txt", 2404,2450],
-]
+OUTPUT = False
+RECORD = False
 
-  
-  # right turn0
-  #JOINT_POS_FILENAME = "data/dog_walk09_joint_pos.txt"
-  #FRAME_START = 2404
-  #FRAME_END = 2450
-  
+RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
+
+# mocap_motions = [
+#   ["pace", "data/dog_walk00_joint_pos.txt",162,201],
+#   ["trot", "data/dog_walk03_joint_pos.txt",448,481 ],
+#   ["trot2", "data/dog_run04_joint_pos.txt",630,663 ],
+#   ["canter", "data/dog_run00_joint_pos.txt", 430, 459],
+#   ["canter2", "data/dog_run02_joint_pos.txt", 59, 88],
+#   ["left turn0", "data/dog_walk09_joint_pos.txt",1085,1124 ],
+#   ["right turn0", "data/dog_walk09_joint_pos.txt", 2404,2450],
+# ]
+
+# mocap_motions = [
+  # ["pace", "data/dog_walk06_joint_pos.txt",None,None],
+  # ["canter", "data/dog_run00_joint_pos.txt", 0, 459],
+  # ["trot", "data/dog_walk03_joint_pos.txt", None, None],
+  # ["trot2", "data/dog_run04_joint_pos.txt", None, None],
+  # ["canter", "data/dog_run00_joint_pos.txt", None, None],
+  # ["left turn0", "data/dog_walk09_joint_pos.txt", None, None],
+  # ["right turn0", "data/dog_walk09_joint_pos.txt", None, None],
+# ]
   
 def build_markers(num_markers):
   marker_radius = 0.02
@@ -89,13 +99,19 @@ def get_joint_limits(robot):
   joint_limit_low = []
   joint_limit_high = []
 
-  for i in range(num_joints):
-    joint_info = pybullet.getJointInfo(robot, i)
-    joint_type = joint_info[2]
+  if 'anymal_d' in config.URDF_FILENAME:
+    joint_range = config.JOINT_RANGE
+    joint_limit_low = config.DEFAULT_JOINT_POSE - joint_range / 2
+    joint_limit_high = config.DEFAULT_JOINT_POSE + joint_range / 2
+  else:
+    for i in range(num_joints):
+      joint_info = pybullet.getJointInfo(robot, i)
+      joint_type = joint_info[2]
 
-    if (joint_type == pybullet.JOINT_PRISMATIC or joint_type == pybullet.JOINT_REVOLUTE):
-      joint_limit_low.append(joint_info[8])
-      joint_limit_high.append(joint_info[9])
+      if (joint_type == pybullet.JOINT_PRISMATIC or joint_type == pybullet.JOINT_REVOLUTE):
+        joint_limit_low.append(joint_info[8])
+        joint_limit_high.append(joint_info[9])
+
 
   return joint_limit_low, joint_limit_high
 
@@ -239,7 +255,15 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 
     tar_toe_pos.append(sim_tar_toe_pos)
 
-  joint_pose = pybullet.calculateInverseKinematics2(robot, config.SIM_TOE_JOINT_IDS,
+  if 'anymal_d' in config.URDF_FILENAME:
+    joint_pose = pybullet.calculateInverseKinematics2(robot, config.SIM_TOE_JOINT_IDS,
+                                                    tar_toe_pos,
+                                                    lowerLimits=joint_lim_low,
+                                                    upperLimits=joint_lim_high,
+                                                    # jointRanges=joint_lim_high-joint_lim_low,
+                                                    restPoses=default_pose)
+  else:
+    joint_pose = pybullet.calculateInverseKinematics2(robot, config.SIM_TOE_JOINT_IDS,
                                                     tar_toe_pos,
                                                     jointDamping=config.JOINT_DAMPING,
                                                     lowerLimits=joint_lim_low,
@@ -254,11 +278,12 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 def update_camera(robot):
   base_pos = np.array(pybullet.getBasePositionAndOrientation(robot)[0])
   [yaw, pitch, dist] = pybullet.getDebugVisualizerCamera()[8:11]
-  pybullet.resetDebugVisualizerCamera(dist, yaw, pitch, base_pos)
+  pybullet.resetDebugVisualizerCamera(3, 0, -5, base_pos)
+  # pybullet.resetDebugVisualizerCamera(3, 45, -15, base_pos)
   return
 
 def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
-  joint_pos_data = np.loadtxt(JOINT_POS_FILENAME, delimiter=",")
+  joint_pos_data = np.loadtxt(RELA_PATH + JOINT_POS_FILENAME, delimiter=",")
 
   start_frame = 0 if (FRAME_START is None) else FRAME_START
   end_frame = joint_pos_data.shape[0] if (FRAME_END is None) else FRAME_END
@@ -324,7 +349,10 @@ def main(argv):
 
   
   p = pybullet
-  p.connect(p.GUI, options="--width=1920 --height=1080 --mp4=\"test.mp4\" --mp4fps=60")
+  if RECORD:
+    p.connect(p.GUI, options="--width=2560 --height=1440")
+  else:
+    p.connect(p.GUI, options="--width=1920 --height=1080 --mp4=\"retarget_motion/ret_data/test/retarget.mp4\" --mp4fps=60")
   p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
 
   pybullet.setAdditionalSearchPath(pd.getDataPath())
@@ -349,12 +377,15 @@ def main(argv):
       marker_ids = build_markers(num_markers)
     
       retarget_frames = retarget_motion(robot, joint_pos_data)
-      output_motion(retarget_frames, f"{mocap_motion[0]}.txt")
+      if OUTPUT:
+        output_motion(retarget_frames, f"retarget_motion/ret_data/test/{mocap_motion[0]}.txt")
     
       f = 0
       num_frames = joint_pos_data.shape[0]
+      max_frames = max(250, num_frames)
     
-      for repeat in range (5*num_frames):
+      # for _ in range (min(5*num_frames, max_frames)):
+      for _ in range (max_frames):
         time_start = time.time()
     
         f_idx = f % num_frames
@@ -382,6 +413,8 @@ def main(argv):
       for m in marker_ids:
         p.removeBody(m)
       marker_ids = []
+      
+    break
 
   pybullet.disconnect()
 

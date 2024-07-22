@@ -1,7 +1,7 @@
 # pace
 JOINT_POS_FILENAME = "data/dog_walk00_joint_pos.txt"
 FRAME_START = 162
-FRAME_END = 20
+FRAME_END = 201
 
 # trot
 JOINT_POS_FILENAME = "data/dog_walk03_joint_pos.txt"
