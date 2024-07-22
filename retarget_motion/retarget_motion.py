@@ -14,12 +14,14 @@ import time
 
 import tensorflow as tf
 import numpy as np
+import torch
 
 from motion_imitation.utilities import pose3d
 from pybullet_utils import transformations
 import pybullet
 import pybullet_data as pd
 from motion_imitation.utilities import motion_util
+
 
 # import retarget_config_a1 as config
 # import retarget_config_laikago as config
@@ -44,21 +46,21 @@ REF_NECK_JOINT_ID = 3
 REF_HIP_JOINT_IDS = [6, 16, 11, 20]
 REF_TOE_JOINT_IDS = [10, 19, 15, 23]
 
-OUTPUT = False
+OUTPUT = True
 RECORD = False
 
 RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
 
 # data collected in data_scale1.3 dir
-# mocap_motions = [
-#   ["pace", "data/dog_walk00_joint_pos.txt",162,201],
-#   ["trot", "data/dog_walk03_joint_pos.txt",448,481 ],
-#   ["trot2", "data/dog_run04_joint_pos.txt",630,663 ],
-#   ["canter", "data/dog_run00_joint_pos.txt", 430, 459],
-#   ["canter2", "data/dog_run02_joint_pos.txt", 59, 88],
-#   ["left turn0", "data/dog_walk09_joint_pos.txt",1085,1124 ],
-#   ["right turn0", "data/dog_walk09_joint_pos.txt", 2404,2450],
-# ]
+mocap_motions = [
+  ["pace", "data/dog_walk00_joint_pos.txt",162,201],
+  ["trot", "data/dog_walk03_joint_pos.txt",448,481 ],
+  ["trot2", "data/dog_run04_joint_pos.txt",630,663 ],
+  ["canter", "data/dog_run00_joint_pos.txt", 430, 459],
+  ["canter2", "data/dog_run02_joint_pos.txt", 59, 88],
+  ["left turn0", "data/dog_walk09_joint_pos.txt",1085,1124 ],
+  ["right turn0", "data/dog_walk09_joint_pos.txt", 2404,2450],
+]
 
 
 # mocap_motions = [
@@ -295,26 +297,36 @@ def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
 
 def retarget_motion(robot, joint_pos_data):
   num_frames = joint_pos_data.shape[0]
-
   for f in range(num_frames):
     ref_joint_pos = joint_pos_data[f]
     ref_joint_pos = np.reshape(ref_joint_pos, [-1, POS_SIZE])
     ref_joint_pos = process_ref_joint_pos_data(ref_joint_pos)
-
     curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos)
     set_pose(robot, curr_pose)
-
+    # lin_vel = (last_curr_pose[:3] - curr_pose[:3]) / FRAME_DURATION
+    # dof_vel = (last_curr_pose[-12:] - curr_pose[-12:]) / FRAME_DURATION
     if f == 0:
       pose_size = curr_pose.shape[-1]
       new_frames = np.zeros([num_frames, pose_size])
+      new_frames_vel = np.zeros([num_frames, pose_size-1])
 
     new_frames[f] = curr_pose
 
   new_frames[:, 0:2] -= new_frames[0, 0:2]
+  base_lin_vel = (new_frames[1:, :3] - new_frames[:-1, :3]) / FRAME_DURATION
+  dof_vel = (new_frames[1:, -12:] - new_frames[:-1, -12:]) / FRAME_DURATION
+  new_frames_vel[:, :3] = np.concatenate((base_lin_vel[[0], :], base_lin_vel), axis=0)
+  new_frames_vel[:, -12:] = np.concatenate((dof_vel[[0], :], dof_vel), axis=0)
+  new_frames_vel[:, 3:6] = get_base_ang_vel_from_base_quat(new_frames[:, 3:7], dt=FRAME_DURATION, target_frame="global")
+  projected_gravity = get_projected_gravity(new_frames[:, 3:7])
+  saved_frames = np.concatenate([new_frames[:, :7], 
+                                  new_frames_vel[:, :6], 
+                                  projected_gravity, 
+                                  new_frames[:, -12:], 
+                                  new_frames_vel[:, -12:]], axis=1)
+  return new_frames, saved_frames
 
-  return new_frames
-
-def output_motion(frames, out_filename):
+def output_motion(frames, out_filename, num_steps=250):
   with open(out_filename, "w") as f:
     f.write("{\n")
     f.write("\"LoopMode\": \"Wrap\",\n")
@@ -326,29 +338,96 @@ def output_motion(frames, out_filename):
     f.write("\"Frames\":\n")
 
     f.write("[")
-    for i in range(frames.shape[0]):
-      curr_frame = frames[i]
+    num_step = 0
+    while True:  # repete num_trajs times
+      for i in range(frames.shape[0]-1):
+        curr_frame = frames[i+1]
 
-      if i != 0:
-        f.write(",")
-      f.write("\n  [")
+        if i != 0:
+          f.write(",")
+        f.write("\n  [")
 
-      for j in range(frames.shape[1]):
-        curr_val = curr_frame[j]
-        if j != 0:
-          f.write(", ")
-        f.write("%.5f" % curr_val)
+        for j in range(frames.shape[1]):
+          curr_val = curr_frame[j]
+          if j != 0:
+            f.write(", ")
+          f.write("%.5f" % curr_val)
 
-      f.write("]")
+        f.write("]")
 
-    f.write("\n]")
-    f.write("\n}")
+        num_step += 1
+        if num_step >= num_steps:
+          f.write("\n]")
+          f.write("\n}")    
+          return 
 
-  return
+def get_base_ang_vel_from_base_quat(base_quat, dt, target_frame="local"):
+    """
+    Get the base angular velocity from the base quaternion.
+    args:
+        base_quat:      torch.Tensor (num_trajs, num_steps, 4)
+        dt:             float
+    returns:
+        base_ang_vel:   torch.Tensor (num_trajs, num_steps, 3) expressed in the target frame
+    """
+    if len(base_quat.shape) < 3:
+      base_quat = np.expand_dims(base_quat, axis=0)
+    num_trajs, num_steps, _ = base_quat.shape
+    mapping = np.zeros((num_trajs, num_steps, 3, 4), dtype=np.float)
+    mapping[:, :, :, -1] = -base_quat[:, :, :-1]
+    if target_frame == "local":
+        mapping[:, :, :, :-1] = get_skew_matrix(-base_quat[:, :, :-1].reshape((-1, 3))).reshape((num_trajs, num_steps, 3, 3))
+    elif target_frame == "global":
+        mapping[:, :, :, :-1] = get_skew_matrix(base_quat[:, :, :-1].reshape((-1, 3))).reshape((num_trajs, num_steps, 3, 3))
+    else:
+        raise ValueError(f"Unknown target frame {target_frame}")
+    mapping[:, :, :, :-1] += np.tile(np.eye(3, dtype=np.float), (num_trajs, num_steps, 1, 1)) * base_quat[:, :, -1].reshape((num_trajs, num_steps, 1, 1))
+    base_ang_vel = 2 * mapping[:, :-1, :, :] @ (base_quat[:, 1:, :] - (base_quat[:, :-1, :]) / dt).reshape((num_trajs, num_steps-1, 4, 1))
+    base_ang_vel = np.concatenate((base_ang_vel[:, [0]], base_ang_vel), axis=1).squeeze(-1)
+    return base_ang_vel
+
+def get_skew_matrix(vec):
+    """Get the skew matrix of a vector."""
+    matrix = np.zeros((vec.shape[0], 3, 3), dtype=np.float)
+    matrix[:, 0, 1] = -vec[:, 2]
+    matrix[:, 0, 2] = vec[:, 1]
+    matrix[:, 1, 0] = vec[:, 2]
+    matrix[:, 1, 2] = -vec[:, 0]
+    matrix[:, 2, 0] = -vec[:, 1]
+    matrix[:, 2, 1] = vec[:, 0]
+    return matrix
+
+def get_projected_gravity(base_quat):
+  num_steps = base_quat.shape[0]
+  gravity_vec = to_torch(get_axis_params(-1.0, 2)).repeat((num_steps, 1))
+  proj_vec = quat_rotate_inverse(torch.tensor(base_quat, dtype=torch.float), gravity_vec)
+  return proj_vec.detach().cpu().numpy()
+
+def to_torch(x, dtype=torch.float, requires_grad=False):
+    return torch.tensor(x, dtype=dtype, requires_grad=requires_grad)
+
+def get_axis_params(value, axis_idx, x_value=0., dtype=np.float, n_dims=3):
+    """construct arguments to `Vec` according to axis index.
+    """
+    zs = np.zeros((n_dims,))
+    assert axis_idx < n_dims, "the axis dim should be within the vector dimensions"
+    zs[axis_idx] = 1.
+    params = np.where(zs == 1., value, zs)
+    params[0] = x_value
+    return list(params.astype(dtype))
+
+def quat_rotate_inverse(q, v):
+    shape = q.shape
+    q_w = q[:, -1]
+    q_vec = q[:, :3]
+    a = v * (2.0 * q_w ** 2 - 1.0).unsqueeze(-1)
+    b = torch.cross(q_vec, v, dim=-1) * q_w.unsqueeze(-1) * 2.0
+    c = q_vec * \
+        torch.bmm(q_vec.view(shape[0], 1, 3), v.view(
+            shape[0], 3, 1)).squeeze(-1) * 2.0
+    return a - b + c
 
 def main(argv):
-  
-
   
   p = pybullet
   if RECORD:
@@ -378,15 +457,13 @@ def main(argv):
       num_markers = joint_pos_data.shape[-1] // POS_SIZE
       marker_ids = build_markers(num_markers)
     
-      retarget_frames = retarget_motion(robot, joint_pos_data)
-      if OUTPUT:
-        output_motion(retarget_frames, f"retarget_motion/ret_data/test/{mocap_motion[0]}.txt")
-    
+      retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data)
       f = 0
       num_frames = joint_pos_data.shape[0]
       max_frames = max(250, num_frames)
-    
       # for _ in range (min(5*num_frames, max_frames)):
+      if OUTPUT:
+        output_motion(saved_frames, f"retarget_motion/ret_data/test/{mocap_motion[0]}.txt", num_steps=max_frames)
       for _ in range (max_frames):
         time_start = time.time()
     
@@ -415,7 +492,7 @@ def main(argv):
       for m in marker_ids:
         p.removeBody(m)
       marker_ids = []
-      
+
     break
 
   pybullet.disconnect()
