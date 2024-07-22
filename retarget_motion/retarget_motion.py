@@ -49,6 +49,7 @@ RECORD = False
 
 RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
 
+# data collected in data_scale1.3 dir
 # mocap_motions = [
 #   ["pace", "data/dog_walk00_joint_pos.txt",162,201],
 #   ["trot", "data/dog_walk03_joint_pos.txt",448,481 ],
@@ -58,6 +59,7 @@ RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_
 #   ["left turn0", "data/dog_walk09_joint_pos.txt",1085,1124 ],
 #   ["right turn0", "data/dog_walk09_joint_pos.txt", 2404,2450],
 # ]
+
 
 # mocap_motions = [
   # ["pace", "data/dog_walk06_joint_pos.txt",None,None],
