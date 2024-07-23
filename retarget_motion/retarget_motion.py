@@ -45,6 +45,8 @@ REF_PELVIS_JOINT_ID = 0
 REF_NECK_JOINT_ID = 3
 REF_HIP_JOINT_IDS = [6, 16, 11, 20]
 REF_TOE_JOINT_IDS = [10, 19, 15, 23]
+# switch the order of the joints to match the order in the isaacgym: LF, LH, RF, RH
+ISAACINDEX = np.concatenate([np.arange(0, 3), np.arange(6, 9), np.arange(3, 6), np.arange(9, 12)])
 
 OUTPUT = True
 RECORD = False
@@ -320,11 +322,13 @@ def retarget_motion(robot, joint_pos_data):
   new_frames_vel[:, -12:] = np.concatenate((dof_vel[[0], :], dof_vel), axis=0)
   new_frames_vel[:, 3:6] = get_base_ang_vel_from_base_quat(new_frames[:, 3:7], dt=FRAME_DURATION, target_frame="global")
   projected_gravity = get_projected_gravity(new_frames[:, 3:7])
+  dof_pos = (new_frames[:, -12:] - config.DEFAULT_JOINT_POSE)[:, ISAACINDEX]
+  dof_vel = new_frames_vel[:, -12:][:, ISAACINDEX]
   saved_frames = np.concatenate([new_frames[:, :7], 
                                   new_frames_vel[:, :6], 
                                   projected_gravity, 
-                                  new_frames[:, -12:], 
-                                  new_frames_vel[:, -12:]], axis=1)
+                                  dof_pos, 
+                                  dof_vel], axis=1)
   return new_frames, saved_frames
 
 def output_motion(frames, out_filename, num_steps=250):
