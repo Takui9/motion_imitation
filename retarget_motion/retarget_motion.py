@@ -50,6 +50,7 @@ OUTPUT = True
 RECORD = False
 
 RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
+LOG_DIR = "retarget_motion/ret_data/test/"
 
 # data collected in data_scale1.3 dir
 mocap_motions = [
@@ -287,7 +288,7 @@ def update_camera(robot):
   return
 
 def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
-  joint_pos_data = np.loadtxt(RELA_PATH + JOINT_POS_FILENAME, delimiter=",")
+  joint_pos_data = np.loadtxt("retarget_motion/" + JOINT_POS_FILENAME, delimiter=",")
 
   start_frame = 0 if (FRAME_START is None) else FRAME_START
   end_frame = joint_pos_data.shape[0] if (FRAME_END is None) else FRAME_END
@@ -327,7 +328,7 @@ def retarget_motion(robot, joint_pos_data):
   return new_frames, saved_frames
 
 def output_motion(frames, out_filename, num_steps=250):
-  with open(out_filename, "w") as f:
+  with open(LOG_DIR + out_filename, "w") as f:
     f.write("{\n")
     f.write("\"LoopMode\": \"Wrap\",\n")
     f.write("\"FrameDuration\": " + str(FRAME_DURATION) + ",\n")
@@ -339,10 +340,13 @@ def output_motion(frames, out_filename, num_steps=250):
 
     f.write("[")
     num_step = 0
+    data = torch.zeros(
+            1, num_steps, frames.shape[1], dtype=torch.float, requires_grad=False
+        )
     while True:  # repete num_trajs times
       for i in range(frames.shape[0]-1):
         curr_frame = frames[i+1]
-
+        data[0, num_step, :] = torch.tensor(curr_frame, dtype=torch.float)
         if i != 0:
           f.write(",")
         f.write("\n  [")
@@ -359,6 +363,8 @@ def output_motion(frames, out_filename, num_steps=250):
         if num_step >= num_steps:
           f.write("\n]")
           f.write("\n}")    
+          # save as pt file
+          torch.save(data, LOG_DIR + "motion_data_" + out_filename.replace(".txt", ".pt"))
           return 
 
 def get_base_ang_vel_from_base_quat(base_quat, dt, target_frame="local"):
@@ -433,7 +439,7 @@ def main(argv):
   if RECORD:
     p.connect(p.GUI, options="--width=2560 --height=1440")
   else:
-    p.connect(p.GUI, options="--width=1920 --height=1080 --mp4=\"retarget_motion/ret_data/test/retarget.mp4\" --mp4fps=60")
+    p.connect(p.GUI, options="--width=1920 --height=1080 --mp4=\"retarget.mp4\" --mp4fps=60")
   p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
 
   pybullet.setAdditionalSearchPath(pd.getDataPath())
@@ -463,7 +469,7 @@ def main(argv):
       max_frames = max(250, num_frames)
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:
-        output_motion(saved_frames, f"retarget_motion/ret_data/test/{mocap_motion[0]}.txt", num_steps=max_frames)
+        output_motion(saved_frames, f"{mocap_motion[0]}.txt", num_steps=max_frames)
       for _ in range (max_frames):
         time_start = time.time()
     

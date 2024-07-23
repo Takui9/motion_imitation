@@ -4,3 +4,4 @@ build
 *.egg
 *.mp4
 *.txt
+retarget_motion/ret_data/test
