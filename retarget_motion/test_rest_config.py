@@ -271,7 +271,7 @@ def update_camera(robot):
   base_pos = np.array(pybullet.getBasePositionAndOrientation(robot)[0])
   [yaw, pitch, dist] = pybullet.getDebugVisualizerCamera()[8:11]
   # pybullet.resetDebugVisualizerCamera(dist, yaw, pitch, base_pos)
-  pybullet.resetDebugVisualizerCamera(dist, 0, -5, base_pos)
+  pybullet.resetDebugVisualizerCamera(dist, 90, -5, base_pos)
   return
 
 def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
