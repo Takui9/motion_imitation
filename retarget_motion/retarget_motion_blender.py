@@ -49,14 +49,24 @@ REF_TOE_JOINT_IDS = [0, 1, 2, 3] # LF, LH, RF, RH
 # switch the order of the joints to match the order in the isaacgym: LF, LH, RF, RH
 ISAACINDEX = np.concatenate([np.arange(0, 3), np.arange(6, 9), np.arange(3, 6), np.arange(9, 12)])
 
-OUTPUT = False
+OUTPUT = True
 RECORD = False
 
 RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
 LOG_DIR = "retarget_motion/ret_data/tencent_motions/"
 
 mocap_motions = [
-  ["jump", "blender_data/data_joint_pos_dog_jump_002_740.txt",None,None],
+  ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
+  # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
+  # ["slow_run", "blender_data/data_joint_pos_dog_fast_run_02_004_600_slowrun.txt",None,None], # forward_off: 0.03
+  # ["walk02", "blender_data/data_joint_pos_dog_fast_run_02_004_2750_walk.txt",None,None], # forward_off: 0.03
+  # ["trot01", "blender_data/data_joint_pos_dog_quad_walk_001_3900_trot.txt",None,None], # forward_off: 0.05
+  # ["run01", "blender_data/data_joint_pos_dog_fast_run_02_004_1000.txt",None,None], # forward_off: 0.03, scale: 1.1, tough
+  # ["walk03", "blender_data/data_joint_pos_dog_quad_walk_001_3600.txt",None,None], # forward_off: 0.03  
+  # ["leftturn", "blender_data/data_joint_pos_dog_quad_walk_001_4250_leftturn.txt",None,None], # shitty
+  # ["rightturn01", "blender_data/data_joint_pos_dog_quad_walk_001_10350_rightturn.txt",None,None], # not bad, forward_off: 0.03, scale: 1.1
+  # ["rightturn02", "blender_data/data_joint_pos_dog_quad_walk_001_10650_rightturn.txt",None,None], # good, forward_off: 0.03, scale: 1.1
+  # ["run01", "blender_data/data_joint_pos_dog_fast_run_02_004_1350.txt",None,None], # forward_off: 0.03, scale: 1.0, tough
 ]
   
 def build_markers(num_markers):
@@ -272,7 +282,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 def update_camera(robot):
   base_pos = np.array(pybullet.getBasePositionAndOrientation(robot)[0])
   [yaw, pitch, dist] = pybullet.getDebugVisualizerCamera()[8:11]
-  pybullet.resetDebugVisualizerCamera(3, 0, -5, base_pos)
+  pybullet.resetDebugVisualizerCamera(3, 90, -5, base_pos)
   # pybullet.resetDebugVisualizerCamera(3, 45, -15, base_pos)
   return
 
@@ -457,7 +467,7 @@ def main(argv):
       retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data)
       f = 0
       num_frames = joint_pos_data.shape[0]
-      max_frames = 100 * 10 # max(150, num_frames)
+      max_frames = 200 # max(150, num_frames)
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:
         output_motion(saved_frames, f"{mocap_motion[0]}.txt", num_steps=max_frames)
