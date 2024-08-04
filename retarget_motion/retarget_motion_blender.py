@@ -56,7 +56,8 @@ RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_
 LOG_DIR = "retarget_motion/ret_data/tencent_motions/"
 
 mocap_motions = [
-  ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
+  ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",None,None],
+  # ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
   # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
   # ["slow_run", "blender_data/data_joint_pos_dog_fast_run_02_004_600_slowrun.txt",None,None], # forward_off: 0.03
   # ["walk02", "blender_data/data_joint_pos_dog_fast_run_02_004_2750_walk.txt",None,None], # forward_off: 0.03
