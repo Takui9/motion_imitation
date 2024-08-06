@@ -40,7 +40,8 @@ FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 # REF_COORD_ROT = transformations.quaternion_from_euler(0.5 * np.pi, 0, 0)
 REF_COORD_ROT = transformations.quaternion_from_euler(0, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
-REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
+# REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
+REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0)
 
 REF_PELVIS_JOINT_ID = 8
 REF_NECK_JOINT_ID = 9
@@ -56,7 +57,8 @@ RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_
 LOG_DIR = "retarget_motion/ret_data/tencent_motions/"
 
 mocap_motions = [
-  ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",None,None],
+  ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_420.txt",None,None],
+  # ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",None,None],
   # ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
   # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
   # ["slow_run", "blender_data/data_joint_pos_dog_fast_run_02_004_600_slowrun.txt",None,None], # forward_off: 0.03
@@ -298,10 +300,19 @@ def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
 
 def retarget_motion(robot, joint_pos_data):
   num_frames = joint_pos_data.shape[0]
+  last_ref_joint_pos = None
+  last_last_ref_joint_pos = None
   for f in range(num_frames):
     ref_joint_pos = joint_pos_data[f]
     ref_joint_pos = np.reshape(ref_joint_pos, [-1, POS_SIZE])
     ref_joint_pos = process_ref_joint_pos_data(ref_joint_pos)
+    # if f >= 2:
+    #   ref_joint_pos = (ref_joint_pos + last_ref_joint_pos + last_last_ref_joint_pos) / 3
+    #   last_last_ref_joint_pos = last_ref_joint_pos.copy()
+    #   last_ref_joint_pos = ref_joint_pos.copy()
+    # else:
+    #   last_last_ref_joint_pos = last_ref_joint_pos.copy() if last_ref_joint_pos is not None else ref_joint_pos.copy()
+    #   last_ref_joint_pos = ref_joint_pos.copy()
     curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos)
     set_pose(robot, curr_pose)
     # lin_vel = (last_curr_pose[:3] - curr_pose[:3]) / FRAME_DURATION
@@ -468,7 +479,7 @@ def main(argv):
       retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data)
       f = 0
       num_frames = joint_pos_data.shape[0]
-      max_frames = 200 # max(150, num_frames)
+      max_frames = 10000 # 200 # max(150, num_frames)
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:
         output_motion(saved_frames, f"{mocap_motion[0]}.txt", num_steps=max_frames)
@@ -487,7 +498,7 @@ def main(argv):
         set_pose(robot, pose)
         set_maker_pos(ref_joint_pos, marker_ids)
     
-        update_camera(robot)
+        # update_camera(robot)
         p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
         f += 1
     
