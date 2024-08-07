@@ -1,0 +1,2 @@
+Bone Name Order List:
+b_LeftHand, b_LeftToe002, b_RightHand, b_RightToe002, b_LeftArm, b_LeftLegUpper, b_RightArm, b_RightLegUpper, b_Spine, b_Spine3, 

@@ -2,7 +2,7 @@ import numpy as np
 
 URDF_FILENAME = "retarget_motion/anymal_d/urdf/anymal_d.urdf"
 
-REF_POS_SCALE = np.array([1.2, 1.3, 1.15]) # 1.2 is very good!, 1.4 is also good
+REF_POS_SCALE = 1.1 # np.array([1.2, 1.3, 1.15]) # 1.2 is very good!, 1.4 is also good
 INIT_POS = np.array([0, 0, 0.66])
 INIT_ROT = np.array([0, 0, 0, 1.0])
 

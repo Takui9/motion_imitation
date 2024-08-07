@@ -32,6 +32,7 @@ POS_SIZE = 3
 ROT_SIZE = 4
 DEFAULT_ROT = np.array([0, 0, 0, 1])
 FORWARD_DIR = np.array([1, 0, 0])
+PLOT = False
 
 GROUND_URDF_FILENAME = "plane_implicit.urdf"
 
@@ -41,7 +42,7 @@ FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 REF_COORD_ROT = transformations.quaternion_from_euler(0, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
 # REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
-REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0)
+REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, np.pi)
 
 REF_PELVIS_JOINT_ID = 8
 REF_NECK_JOINT_ID = 9
@@ -57,7 +58,8 @@ RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_
 LOG_DIR = "retarget_motion/ret_data/tencent_motions/"
 
 mocap_motions = [
-  ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_420.txt",None,None],
+  # ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_420.txt",None,None],
+  ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_515_low_height_shorter.txt",None,None],
   # ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",None,None],
   # ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
   # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
