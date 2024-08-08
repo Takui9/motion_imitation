@@ -27,6 +27,7 @@ from motion_imitation.utilities import motion_util
 # import retarget_config_laikago as config
 # import retarget_config_vision60 as config
 import retarget_config_anymal as config
+import matplotlib.pyplot as plt
 
 POS_SIZE = 3
 ROT_SIZE = 4
@@ -39,6 +40,7 @@ GROUND_URDF_FILENAME = "plane_implicit.urdf"
 FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 REF_COORD_ROT = transformations.quaternion_from_euler(0.5 * np.pi, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
+angle = [0, 0, 0.47 * np.pi] - np.array([-0.030348604592354243, 0.0004194554676767022, -0.1503376313516547])
 REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
 
 REF_PELVIS_JOINT_ID = 0
@@ -52,7 +54,7 @@ OUTPUT = True
 RECORD = False
 
 RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
-LOG_DIR = "retarget_motion/ret_data/animal_motions_new/"
+LOG_DIR = "retarget_motion/ret_data/animal_motions_canter_new/"
 
 # data collected in data_scale1.3 dir
 # mocap_motions = [
@@ -65,62 +67,28 @@ LOG_DIR = "retarget_motion/ret_data/animal_motions_new/"
   # ["right_turn0", "data/dog_walk09_joint_pos.txt", 2404,2450],
 # ]
 
-# mocap_motions = [
+mocap_motions = [
   # ["pace", "data/dog_walk00_joint_pos.txt",162,162+250],
   # ["trot", "data/dog_walk03_joint_pos.txt",448,448+250],
   # ["trot2", "data/dog_run04_joint_pos.txt",630,630+250 ], # no
   # ["canter", "data/dog_run00_joint_pos.txt", 430, 430+250],
-  # ["canter2", "data/dog_run02_joint_pos.txt", 59, 59+250],
+  ["canter2", "data/dog_run02_joint_pos.txt", 59, 59+250],
   # ["left_turn0", "data/dog_walk09_joint_pos.txt",1085,1085+250], # no
   # ["right_turn0", "data/dog_walk09_joint_pos.txt", 2404,2404+250], # no
-# ]
+]
 
 
-mocap_motions = [
+# mocap_motions = [
   # ["run00", "data/dog_run00_joint_pos.txt",400,550], # 150
   # ["run01", "data/dog_run01_joint_pos.txt", None, 150], # 150
   # ["run02", "data/dog_run02_joint_pos.txt", None, 150], # 200
-    ["walk01_walkturn_01", "data/dog_walk01_joint_pos.txt", 300, 450], # start idx: 300, 450, 600, 750, 900
-    ["walk01_walkturn_02", "data/dog_walk01_joint_pos.txt", 450, 600], # start idx: 300, 450, 600, 750, 900
-    ["walk01_walkturn_03", "data/dog_walk01_joint_pos.txt", 600, 750], # start idx: 300, 450, 600, 750, 900
-    ["walk01_walkturn_04", "data/dog_walk01_joint_pos.txt", 750, 900], # start idx: 300, 450, 600, 750, 900
-    ["walk01_walkturn_05", "data/dog_walk01_joint_pos.txt", 900, 1050], # start idx: 300, 450, 600, 750, 900
-    ["walk03_pace_01", "data/dog_walk03_joint_pos.txt", 200, 350],
-    ["walk03_trot_02", "data/dog_walk03_joint_pos.txt", 350, 500],
-    ["walk05_pace_01", "data/dog_walk05_joint_pos.txt", 200, 350], # pace 
-    ["walk05_pace_02", "data/dog_walk05_joint_pos.txt", 350, 500], # pace
-    ["walk09_walkturn_01", "data/dog_walk09_joint_pos.txt", 0, 150], 
-    ["walk09_walkturn_02", "data/dog_walk09_joint_pos.txt", 150, 300], 
-    ["walk09_walk_rightturn_03", "data/dog_walk09_joint_pos.txt", 300, 450], 
-    ["walk09_walk_rightturn_04", "data/dog_walk09_joint_pos.txt", 450, 600], 
-    ["walk09_rightturn_01", "data/dog_walk09_joint_pos.txt", 600, 750], 
-    ["walk09_rightturn_02", "data/dog_walk09_joint_pos.txt", 750, 900], 
-    ["walk09_rightturn_03", "data/dog_walk09_joint_pos.txt", 900, 1050], 
-    ["walk09_rightturn_04", "data/dog_walk09_joint_pos.txt", 1050, 1200], 
-    ["walk09_leftturn_01", "data/dog_walk09_joint_pos.txt", 1200, 1350], 
-    ["walk09_leftturn_02", "data/dog_walk09_joint_pos.txt", 1350, 1500], 
-    ["walk09_leftturn_03", "data/dog_walk09_joint_pos.txt", 1500, 1650], 
-    ["walk09_leftturn_04", "data/dog_walk09_joint_pos.txt", 1650, 1800],  
-    ["walk09_slowwalk_01", "data/dog_walk09_joint_pos.txt", 1800, 1950],  
-    ["walk09_slowwalk_02", "data/dog_walk09_joint_pos.txt", 1950, 2100],  
-    ["walk09_slowwalk_03", "data/dog_walk09_joint_pos.txt", 2100, 2250],  
-    ["walk09_quickrightturn_01", "data/dog_walk09_joint_pos.txt", 2250, 2400],  
-  # ["walk09", "data/dog_walk09_joint_pos.txt", None, 2500],
-  # ["walk09", "data/dog_walk09_joint_pos.txt", 2800, 2950], # 2800 to 3950
-  # ["walk09", "data/dog_walk09_joint_pos.txt", 2950, 3100], # 2800 to 3950
-]
-mocap_motions = [
-    # ["run00", "data/dog_run00_joint_pos.txt",400,550], # 150
-    # ["run01", "data/dog_run01_joint_pos.txt", None, 150], # 150, scale:1.3, dir_offset:0.07, toe_offset:-0.08
-    # ["run02", "data/dog_run02_joint_pos.txt", None, 150], # 200
-    # ["run04_fasttrot", "data/dog_run04_joint_pos.txt", 500, 650], # quick trot
     # ["walk01_walkturn_01", "data/dog_walk01_joint_pos.txt", 300, 450], # start idx: 300, 450, 600, 750, 900
     # ["walk01_walkturn_02", "data/dog_walk01_joint_pos.txt", 450, 600], # start idx: 300, 450, 600, 750, 900
     # ["walk01_walkturn_03", "data/dog_walk01_joint_pos.txt", 600, 750], # start idx: 300, 450, 600, 750, 900
     # ["walk01_walkturn_04", "data/dog_walk01_joint_pos.txt", 750, 900], # start idx: 300, 450, 600, 750, 900
     # ["walk01_walkturn_05", "data/dog_walk01_joint_pos.txt", 900, 1050], # start idx: 300, 450, 600, 750, 900
     # ["walk03_pace_01", "data/dog_walk03_joint_pos.txt", 200, 350],
-    ["walk03_trot_02", "data/dog_walk03_joint_pos.txt", 350, 500],
+    # ["walk03_trot_02", "data/dog_walk03_joint_pos.txt", 350, 500],
     # ["walk05_pace_01", "data/dog_walk05_joint_pos.txt", 200, 350], # pace 
     # ["walk05_pace_02", "data/dog_walk05_joint_pos.txt", 350, 500], # pace
     # ["walk09_walkturn_01", "data/dog_walk09_joint_pos.txt", 0, 150], 
@@ -139,7 +107,41 @@ mocap_motions = [
     # ["walk09_slowwalk_02", "data/dog_walk09_joint_pos.txt", 1950, 2100],  
     # ["walk09_slowwalk_03", "data/dog_walk09_joint_pos.txt", 2100, 2250],  
     # ["walk09_quickrightturn_01", "data/dog_walk09_joint_pos.txt", 2250, 2400],  
-]
+  # ["walk09", "data/dog_walk09_joint_pos.txt", None, 2500],
+  # ["walk09", "data/dog_walk09_joint_pos.txt", 2800, 2950], # 2800 to 3950
+  # ["walk09", "data/dog_walk09_joint_pos.txt", 2950, 3100], # 2800 to 3950
+# ]
+# mocap_motions = [
+    # ["run00", "data/dog_run00_joint_pos.txt",400,550], # 150
+    # ["run01", "data/dog_run01_joint_pos.txt", None, 150], # 150, scale:1.3, dir_offset:0.07, toe_offset:-0.08
+    # ["run02", "data/dog_run02_joint_pos.txt", None, 150], # 200
+    # ["run04_fasttrot", "data/dog_run04_joint_pos.txt", 500, 650], # quick trot
+    # ["walk01_walkturn_01", "data/dog_walk01_joint_pos.txt", 300, 450], # start idx: 300, 450, 600, 750, 900
+    # ["walk01_walkturn_02", "data/dog_walk01_joint_pos.txt", 450, 600], # start idx: 300, 450, 600, 750, 900
+    # ["walk01_walkturn_03", "data/dog_walk01_joint_pos.txt", 600, 750], # start idx: 300, 450, 600, 750, 900
+    # ["walk01_walkturn_04", "data/dog_walk01_joint_pos.txt", 750, 900], # start idx: 300, 450, 600, 750, 900
+    # ["walk01_walkturn_05", "data/dog_walk01_joint_pos.txt", 900, 1050], # start idx: 300, 450, 600, 750, 900
+    # ["walk03_pace_01", "data/dog_walk03_joint_pos.txt", 200, 350],
+    # ["walk03_trot_02", "data/dog_walk03_joint_pos.txt", 350, 500],
+    # ["walk05_pace_01", "data/dog_walk05_joint_pos.txt", 200, 350], # pace 
+    # ["walk05_pace_02", "data/dog_walk05_joint_pos.txt", 350, 500], # pace
+    # ["walk09_walkturn_01", "data/dog_walk09_joint_pos.txt", 0, 150], 
+    # ["walk09_walkturn_02", "data/dog_walk09_joint_pos.txt", 150, 300], 
+    # ["walk09_walk_rightturn_03", "data/dog_walk09_joint_pos.txt", 300, 450], 
+    # ["walk09_walk_rightturn_04", "data/dog_walk09_joint_pos.txt", 450, 600], 
+    # ["walk09_rightturn_01", "data/dog_walk09_joint_pos.txt", 600, 750], 
+    # ["walk09_rightturn_02", "data/dog_walk09_joint_pos.txt", 750, 900], 
+    # ["walk09_rightturn_03", "data/dog_walk09_joint_pos.txt", 900, 1050], 
+    # ["walk09_rightturn_04", "data/dog_walk09_joint_pos.txt", 1050, 1200], 
+    # ["walk09_leftturn_01", "data/dog_walk09_joint_pos.txt", 1200, 1350], 
+    # ["walk09_leftturn_02", "data/dog_walk09_joint_pos.txt", 1350, 1500], 
+    # ["walk09_leftturn_03", "data/dog_walk09_joint_pos.txt", 1500, 1650], 
+    # ["walk09_leftturn_04", "data/dog_walk09_joint_pos.txt", 1650, 1800],  
+    # ["walk09_slowwalk_01", "data/dog_walk09_joint_pos.txt", 1800, 1950],  
+    # ["walk09_slowwalk_02", "data/dog_walk09_joint_pos.txt", 1950, 2100],  
+    # ["walk09_slowwalk_03", "data/dog_walk09_joint_pos.txt", 2100, 2250],  
+    # ["walk09_quickrightturn_01", "data/dog_walk09_joint_pos.txt", 2250, 2400],  
+# ]
   
 def build_markers(num_markers):
   marker_radius = 0.02
@@ -397,6 +399,25 @@ def retarget_motion(robot, joint_pos_data):
   return new_frames, saved_frames
 
 def output_motion(frames, out_filename, num_steps=150):
+  plt.figure()
+  plt.title("LF")
+  plt.plot(frames[:, 16:19])
+  plt.figure()
+  plt.title("LH")
+  plt.plot(frames[:, 19:22])
+  plt.figure()
+  plt.plot(frames[:, 22:25])
+  plt.title("RF")
+  plt.figure()
+  plt.plot(frames[:, 25:28])
+  plt.title("RH")
+  plt.figure()
+  plt.plot(frames[:, 7:10])
+  plt.title("Linear Velocity")
+  plt.figure()
+  plt.plot(frames[:, 7:10], label="Angular Velocity")
+  plt.title("Angular Velocity")
+  plt.show()
   with open(LOG_DIR + out_filename, "w") as f:
     f.write("{\n")
     f.write("\"LoopMode\": \"Wrap\",\n")
@@ -535,7 +556,7 @@ def main(argv):
       retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data)
       f = 0
       num_frames = joint_pos_data.shape[0]
-      max_frames = 150 # max(150, num_frames)
+      max_frames = 250 # max(150, num_frames)
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:
         output_motion(saved_frames, f"{mocap_motion[0]}.txt", num_steps=max_frames)
@@ -554,7 +575,7 @@ def main(argv):
         set_pose(robot, pose)
         set_maker_pos(ref_joint_pos, marker_ids)
     
-        update_camera(robot)
+        # update_camera(robot)
         p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
         f += 1
     

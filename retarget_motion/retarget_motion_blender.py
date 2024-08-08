@@ -28,6 +28,8 @@ from motion_imitation.utilities import motion_util
 # import retarget_config_vision60 as config
 import retarget_config_anymal_blender as config
 
+import matplotlib.pyplot as plt
+
 POS_SIZE = 3
 ROT_SIZE = 4
 DEFAULT_ROT = np.array([0, 0, 0, 1])
@@ -42,7 +44,8 @@ FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 REF_COORD_ROT = transformations.quaternion_from_euler(0, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
 # REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
-REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, np.pi)
+angle = [0, 0, np.pi] - np.array([-0.030348604592354243, 0.0004194554676767022, -0.1503376313516547])
+REF_ROOT_ROT = transformations.quaternion_from_euler(*angle)
 
 REF_PELVIS_JOINT_ID = 8
 REF_NECK_JOINT_ID = 9
@@ -56,11 +59,11 @@ RECORD = False
 
 RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_motion/"
 LOG_DIR = "retarget_motion/ret_data/tencent_motions/"
-
 mocap_motions = [
   # ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_420.txt",None,None],
-  ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_515_low_height_shorter.txt",None,None],
-  # ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",None,None],
+  # ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_515_low_height_shorter.txt",3,55],
+  # ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",20,None],
+  # ["highjump01", "blender_data/data_joint_pos_dog_jump_006_730.txt",5, None], # SIM_TOE_OFFSET_LOCAL: x: -0.05 for hind legs, y: -0.03, REF_POS_SCALE:0.97
   # ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
   # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
   # ["slow_run", "blender_data/data_joint_pos_dog_fast_run_02_004_600_slowrun.txt",None,None], # forward_off: 0.03
@@ -73,7 +76,7 @@ mocap_motions = [
   # ["rightturn02", "blender_data/data_joint_pos_dog_quad_walk_001_10650_rightturn.txt",None,None], # good, forward_off: 0.03, scale: 1.1
   # ["run01", "blender_data/data_joint_pos_dog_fast_run_02_004_1350.txt",None,None], # forward_off: 0.03, scale: 1.0, tough
 ]
-  
+
 def build_markers(num_markers):
   marker_radius = 0.02
 
@@ -255,7 +258,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 
     ref_hip_toe_delta = ref_toe_pos - ref_hip_pos
     sim_tar_toe_pos = sim_hip_pos + ref_hip_toe_delta
-    sim_tar_toe_pos[2] = ref_toe_pos[2]
+    sim_tar_toe_pos[2] = ref_toe_pos[2] * 0.8
     sim_tar_toe_pos += toe_offset_world
 
     tar_toe_pos.append(sim_tar_toe_pos)
@@ -335,6 +338,8 @@ def retarget_motion(robot, joint_pos_data):
   projected_gravity = get_projected_gravity(new_frames[:, 3:7])
   dof_pos = (new_frames[:, -12:] - config.DEFAULT_JOINT_POSE)[:, ISAACINDEX]
   dof_vel = new_frames_vel[:, -12:][:, ISAACINDEX]
+  for i in range(6):
+    new_frames_vel[1:, i] = moving_average(new_frames_vel[:, i], 2)
   saved_frames = np.concatenate([new_frames[:, :7], 
                                   new_frames_vel[:, :6], 
                                   projected_gravity, 
@@ -343,6 +348,26 @@ def retarget_motion(robot, joint_pos_data):
   return new_frames, saved_frames
 
 def output_motion(frames, out_filename, num_steps=150):
+  # show the traj of joint
+  plt.figure()
+  plt.title("LF")
+  plt.plot(frames[:, 16:19])
+  plt.figure()
+  plt.title("LH")
+  plt.plot(frames[:, 19:22])
+  plt.figure()
+  plt.plot(frames[:, 22:25])
+  plt.title("RF")
+  plt.figure()
+  plt.plot(frames[:, 25:28])
+  plt.title("RH")
+  plt.figure()
+  plt.plot(frames[:, 7:10])
+  plt.title("Linear Velocity")
+  plt.figure()
+  plt.plot(frames[:, 7:10], label="Angular Velocity")
+  plt.title("Angular Velocity")
+  plt.show()
   with open(LOG_DIR + out_filename, "w") as f:
     f.write("{\n")
     f.write("\"LoopMode\": \"Wrap\",\n")
@@ -447,6 +472,11 @@ def quat_rotate_inverse(q, v):
         torch.bmm(q_vec.view(shape[0], 1, 3), v.view(
             shape[0], 3, 1)).squeeze(-1) * 2.0
     return a - b + c
+  
+def moving_average(data, window_size):
+    """Calculate the moving average using NumPy."""
+    weights = np.ones(window_size) / window_size
+    return np.convolve(data, weights, 'valid')
 
 def main(argv):
   
@@ -481,13 +511,13 @@ def main(argv):
       retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data)
       f = 0
       num_frames = joint_pos_data.shape[0]
-      max_frames = 10000 # 200 # max(150, num_frames)
+      max_frames = num_frames * 5 # 10000 # 200 # max(150, num_frames)
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:
         output_motion(saved_frames, f"{mocap_motion[0]}.txt", num_steps=max_frames)
       for _ in range (max_frames):
         time_start = time.time()
-    
+     
         f_idx = f % num_frames
         print("Frame {:d}".format(f_idx))
     
