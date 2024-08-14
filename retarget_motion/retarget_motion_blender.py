@@ -43,9 +43,9 @@ FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 # REF_COORD_ROT = transformations.quaternion_from_euler(0.5 * np.pi, 0, 0)
 REF_COORD_ROT = transformations.quaternion_from_euler(0, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
-# REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)
+# REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi) # jump01, low shorter jump
 angle = [0, 0, np.pi] - np.array([-0.030348604592354243, 0.0004194554676767022, -0.1503376313516547])
-REF_ROOT_ROT = transformations.quaternion_from_euler(*angle)
+REF_ROOT_ROT = transformations.quaternion_from_euler(*angle) # highjump01_new
 
 REF_PELVIS_JOINT_ID = 8
 REF_NECK_JOINT_ID = 9
@@ -61,9 +61,9 @@ RELA_PATH = "/home/zewzhang/codespace/motion_retarget/motion_imitation/retarget_
 LOG_DIR = "retarget_motion/ret_data/tencent_motions/"
 mocap_motions = [
   # ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_420.txt",None,None],
-  # ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_515_low_height_shorter.txt",3,55],
+  # ["jump01_new", "blender_data/data_joint_pos_dog_jump_high_001_515_low_height_shorter.txt",1,49],
   # ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",20,None],
-  # ["highjump01", "blender_data/data_joint_pos_dog_jump_006_730.txt",5, None], # SIM_TOE_OFFSET_LOCAL: x: -0.05 for hind legs, y: -0.03, REF_POS_SCALE:0.97
+  ["highjump01_new", "blender_data/data_joint_pos_dog_jump_006_730.txt",5, None], # SIM_TOE_OFFSET_LOCAL: x: -0.05 for hind legs, y: -0.03, REF_POS_SCALE:0.97
   # ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
   # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
   # ["slow_run", "blender_data/data_joint_pos_dog_fast_run_02_004_600_slowrun.txt",None,None], # forward_off: 0.03
@@ -200,6 +200,7 @@ def retarget_root_pose(ref_joint_pos):
   right_hip_pos = ref_joint_pos[REF_HIP_JOINT_IDS[3]]
 
   forward_dir = neck_pos - pelvis_pos
+  forward_dir[2] *= 0.5  # make the base more stable
   forward_dir += config.FORWARD_DIR_OFFSET
   forward_dir = forward_dir / np.linalg.norm(forward_dir)
 
@@ -235,6 +236,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 
   root_pos, root_rot = retarget_root_pose(ref_joint_pos)
   root_pos += config.SIM_ROOT_OFFSET
+  # root_pos[2] = (root_pos[2] - 0.4) * 0.8 + 0.4
 
   pybullet.resetBasePositionAndOrientation(robot, root_pos, root_rot)
 
@@ -285,7 +287,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 
   pose = np.concatenate([root_pos, root_rot, joint_pose])
 
-  return pose
+  return pose, tar_toe_pos
 
 def update_camera(robot):
   base_pos = np.array(pybullet.getBasePositionAndOrientation(robot)[0])
@@ -303,10 +305,11 @@ def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
 
   return joint_pos_data
 
-def retarget_motion(robot, joint_pos_data):
+def retarget_motion(robot, joint_pos_data, name=None):
   num_frames = joint_pos_data.shape[0]
   last_ref_joint_pos = None
   last_last_ref_joint_pos = None
+  tar_toe_pos_list = []
   for f in range(num_frames):
     ref_joint_pos = joint_pos_data[f]
     ref_joint_pos = np.reshape(ref_joint_pos, [-1, POS_SIZE])
@@ -318,7 +321,8 @@ def retarget_motion(robot, joint_pos_data):
     # else:
     #   last_last_ref_joint_pos = last_ref_joint_pos.copy() if last_ref_joint_pos is not None else ref_joint_pos.copy()
     #   last_ref_joint_pos = ref_joint_pos.copy()
-    curr_pose = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos)
+    curr_pose, tar_toe_pos = retarget_pose(robot, config.DEFAULT_JOINT_POSE, ref_joint_pos)
+    tar_toe_pos_list.append(tar_toe_pos)
     set_pose(robot, curr_pose)
     # lin_vel = (last_curr_pose[:3] - curr_pose[:3]) / FRAME_DURATION
     # dof_vel = (last_curr_pose[-12:] - curr_pose[-12:]) / FRAME_DURATION
@@ -326,9 +330,10 @@ def retarget_motion(robot, joint_pos_data):
       pose_size = curr_pose.shape[-1]
       new_frames = np.zeros([num_frames, pose_size])
       new_frames_vel = np.zeros([num_frames, pose_size-1])
-
     new_frames[f] = curr_pose
 
+  plot_foot_base_pos(tar_toe_pos_list, new_frames[:, :7], name)
+  new_frames = get_new_frames(robot, tar_toe_pos_list, new_frames[:, :7]) # update new frames
   new_frames[:, 0:2] -= new_frames[0, 0:2]
   base_lin_vel = (new_frames[1:, :3] - new_frames[:-1, :3]) / FRAME_DURATION
   dof_vel = (new_frames[1:, -12:] - new_frames[:-1, -12:]) / FRAME_DURATION
@@ -478,6 +483,115 @@ def moving_average(data, window_size):
     weights = np.ones(window_size) / window_size
     return np.convolve(data, weights, 'valid')
 
+def plot_foot_base_pos(tar_toe_pos_list, base_pos_list, name):
+  tar_toe_pos_list = np.array(tar_toe_pos_list)
+  new_tar_toe_pos_list, new_base_pos_list = preprocess_foot_base_pos(tar_toe_pos_list, base_pos_list)
+  plt.figure()
+  plt.plot(tar_toe_pos_list[:, 0, 2], label="LF_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 1, 2], label="LH_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 2, 2], label="RF_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 3, 2], label="RH_orig", linestyle="--")
+  plt.plot(base_pos_list[:, 2], label="Base_orig", linestyle="--")
+  plt.plot(new_tar_toe_pos_list[:, 0, 2], label="LF", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 1, 2], label="LH", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 2, 2], label="RF", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 3, 2], label="RH", linestyle="-")
+  plt.plot(new_base_pos_list[:, 2], label="Base", linestyle="-")
+  plt.legend()
+  plt.savefig(f"retarget_motion/{name}_foot_base_pos_z_new.png")
+  
+  plt.figure()
+  plt.plot(tar_toe_pos_list[:, 0, 1], label="LF_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 1, 1], label="LH_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 2, 1], label="RF_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 3, 1], label="RH_orig", linestyle="--")
+  plt.plot(base_pos_list[:, 1], label="Base_orig", linestyle="--")
+  plt.plot(new_tar_toe_pos_list[:, 0, 1], label="LF", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 1, 1], label="LH", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 2, 1], label="RF", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 3, 1], label="RH", linestyle="-")
+  plt.plot(new_base_pos_list[:, 1], label="Base", linestyle="-")
+  plt.legend()
+  plt.savefig(f"retarget_motion/{name}_foot_base_pos_y_new.png")
+  
+  plt.figure()
+  plt.plot(tar_toe_pos_list[:, 0, 0], label="LF_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 1, 0], label="LH_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 2, 0], label="RF_orig", linestyle="--")
+  plt.plot(tar_toe_pos_list[:, 3, 0], label="RH_orig", linestyle="--")
+  plt.plot(base_pos_list[:, 0], label="Base_orig", linestyle="--")
+  plt.plot(new_tar_toe_pos_list[:, 0, 0], label="LF", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 1, 0], label="LH", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 2, 0], label="RF", linestyle="-")
+  plt.plot(new_tar_toe_pos_list[:, 3, 0], label="RH", linestyle="-")
+  plt.plot(new_base_pos_list[:, 0], label="Base", linestyle="-")
+  plt.legend()
+  plt.savefig(f"retarget_motion/{name}_foot_base_pos_x_new.png")
+
+def preprocess_foot_base_pos(orig_tar_toe_pos_list, orig_base_pos_list):
+  tar_toe_pos, base_pos = preprocess_foot_base_pos_z(orig_tar_toe_pos_list, orig_base_pos_list)
+  final_tar_toe_pos , final_base_pos = preprocess_foot_base_pos_xy(tar_toe_pos, base_pos)
+  return final_tar_toe_pos, final_base_pos
+
+def preprocess_foot_base_pos_z(orig_tar_toe_pos_list, orig_base_pos_list):
+  tar_toe_pos_list = orig_tar_toe_pos_list.copy()
+  base_pos_list = orig_base_pos_list.copy()
+  # highjump01_new
+  base_orig_height = 0.45
+  base_height_scale = 0.7
+  foot_height_scale = np.array([0.5, 0.5, 0.5, 0.5])
+  jumping_frames = np.array([16, 28, 20, 28]) # LF, LH, RF, RH # highjump01_new
+  # jump01_new
+  # base_orig_height = 0.6
+  # base_height_scale = 0.5
+  # foot_height_scale = np.array([0.7, 0.5, 0.7, 0.5])
+  # jumping_frames = np.array([0, 11, 0, 11]) # LF, LH, RF, RH # jump01_new
+  base_pos_list[:, 2] = (base_pos_list[:, 2] - base_orig_height) * base_height_scale + base_orig_height # 0.4 is the original height of base
+  tar_toe_pos_min = np.min(tar_toe_pos_list[:, :, 2], axis=0)
+  # tar_toe_pos_max = np.max(tar_toe_pos_list[:, :, 2], axis=0)
+  tar_toe_pos_list[:, :, 2] = tar_toe_pos_list[:, :, 2] - tar_toe_pos_min.clip(max=0)
+  for i, jumping_frame in enumerate(jumping_frames):
+    tar_toe_pos_list[jumping_frame:, i, 2] = tar_toe_pos_list[jumping_frame:, i, 2] * foot_height_scale[i]
+    # if i == 1 or i == 3:
+    #   num_frames = tar_toe_pos_list.shape[0]
+    #   tar_toe_pos_list[jumping_frame:, i, 2] = tar_toe_pos_list[:num_frames-jumping_frame, i-1, 2]
+
+  return tar_toe_pos_list, base_pos_list
+
+def preprocess_foot_base_pos_xy(orig_tar_toe_pos_list, orig_base_pos_list):
+  # slow down the forward speed
+  tar_toe_pos_list = orig_tar_toe_pos_list.copy()
+  base_pos_list = orig_base_pos_list.copy()
+  # highjump01_new
+  xy_scale = 0.7
+  # jump01_new
+  # xy_scale = 0.6
+  local_tar_toe_pos_list = tar_toe_pos_list - base_pos_list[:, :3].reshape(-1, 1, 3)
+  base_pos_list[:, :2] = (base_pos_list[:, :2] - base_pos_list[0, :2]) * xy_scale + base_pos_list[0, :2]
+  global_tar_toe_pos_list = local_tar_toe_pos_list + base_pos_list[:, :3].reshape(-1, 1, 3)
+  
+  return global_tar_toe_pos_list, base_pos_list
+
+def get_new_frames(robot, tar_toe_pos_list, base_pos_list):
+  tar_toe_pos_list = np.array(tar_toe_pos_list)
+  num_frames = tar_toe_pos_list.shape[0]
+  new_tar_toe_pos_list, new_base_pos_list = preprocess_foot_base_pos(tar_toe_pos_list, base_pos_list)
+  new_frames = np.zeros([num_frames, 7 + 12])
+  
+  for k in range(num_frames):
+    pybullet.resetBasePositionAndOrientation(robot, new_base_pos_list[k, :3], base_pos_list[k, 3:7])
+    joint_pose = pybullet.calculateInverseKinematics2(robot, config.SIM_TOE_JOINT_IDS,
+                                                    new_tar_toe_pos_list[k, :, :],
+                                                    maxNumIterations=2000,
+                                                    residualThreshold=1e-16)
+    joint_pose = np.array(joint_pose)
+    pose = np.concatenate([new_base_pos_list[k, :7], joint_pose])
+    set_pose(robot, pose)
+    new_frames[k] = pose
+    
+  return new_frames
+  
+
 def main(argv):
   
   p = pybullet
@@ -508,10 +622,11 @@ def main(argv):
       num_markers = joint_pos_data.shape[-1] // POS_SIZE
       marker_ids = build_markers(num_markers)
     
-      retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data)
+      retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data, mocap_motion[0])
       f = 0
       num_frames = joint_pos_data.shape[0]
       max_frames = num_frames * 5 # 10000 # 200 # max(150, num_frames)
+      # max_frames = 10000
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:
         output_motion(saved_frames, f"{mocap_motion[0]}.txt", num_steps=max_frames)
