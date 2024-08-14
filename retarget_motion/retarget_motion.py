@@ -68,11 +68,11 @@ LOG_DIR = "retarget_motion/ret_data/animal_motions_canter_new/"
 # ]
 
 mocap_motions = [
-  # ["pace", "data/dog_walk00_joint_pos.txt",162,162+250],
+  ["pace", "data/dog_walk00_joint_pos.txt",162,162+250],
   # ["trot", "data/dog_walk03_joint_pos.txt",448,448+250],
   # ["trot2", "data/dog_run04_joint_pos.txt",630,630+250 ], # no
   # ["canter", "data/dog_run00_joint_pos.txt", 430, 430+250],
-  ["canter2", "data/dog_run02_joint_pos.txt", 59, 59+250],
+  # ["canter2", "data/dog_run02_joint_pos.txt", 59, 59+250],
   # ["left_turn0", "data/dog_walk09_joint_pos.txt",1085,1085+250], # no
   # ["right_turn0", "data/dog_walk09_joint_pos.txt", 2404,2404+250], # no
 ]
