@@ -14,18 +14,24 @@ SIM_TOE_JOINT_IDS = [
 ]
 SIM_HIP_JOINT_IDS = [40, 62, 29, 51]
 SIM_ROOT_OFFSET = np.array([0, 0, 0.00])
-SIM_TOE_OFFSET_LOCAL = [
-    np.array([0.0, -0.03, 0.0]), # default y: -0.05
-    np.array([0.02, -0.03, 0.0]),
-    np.array([0.0, 0.03, 0.0]), # default y: 0.05
-    np.array([0.02, 0.03, 0.0])
-] # highjump01
+# SIM_TOE_OFFSET_LOCAL = [
+#     np.array([0.0, -0.03, 0.0]), # default y: -0.05
+#     np.array([0.02, -0.03, 0.0]),
+#     np.array([0.0, 0.03, 0.0]), # default y: 0.05
+#     np.array([0.02, 0.03, 0.0])
+# ] # highjump01
 # SIM_TOE_OFFSET_LOCAL = [
 #     np.array([0.03, -0.03, 0.0]), # default y: -0.05
 #     np.array([-0.02, -0.03, 0.0]),
 #     np.array([0.03, 0.03, 0.0]), # default y: 0.05
 #     np.array([-0.02, 0.03, 0.0])
 # ] # jump01
+SIM_TOE_OFFSET_LOCAL = [
+    np.array([0.03, -0.00, 0.0]), # default y: -0.05
+    np.array([-0.02, -0.00, 0.0]),
+    np.array([0.03, 0.00, 0.0]), # default y: 0.05
+    np.array([-0.02, 0.00, 0.0])
+] # trot
 JOINT_RANGE = np.array([100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100])
 
 DEFAULT_JOINT_POSE = np.array([-0.13859, 0.480936, -0.761428,    # FL

@@ -43,9 +43,9 @@ FRAME_DURATION = 0.02 # 50Hz, default, 0.01667
 # REF_COORD_ROT = transformations.quaternion_from_euler(0.5 * np.pi, 0, 0)
 REF_COORD_ROT = transformations.quaternion_from_euler(0, 0, 0)
 REF_POS_OFFSET = np.array([0, 0, 0])
-# REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi) # jump01, low shorter jump
-angle = [0, 0, np.pi] - np.array([-0.030348604592354243, 0.0004194554676767022, -0.1503376313516547])
-REF_ROOT_ROT = transformations.quaternion_from_euler(*angle) # highjump01_new
+REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.97 * np.pi) # jump01, low shorter jump
+# angle = [0, 0, np.pi] - np.array([-0.030348604592354243, 0.0004194554676767022, -0.1503376313516547])
+# REF_ROOT_ROT = transformations.quaternion_from_euler(*angle) # highjump01_new
 
 REF_PELVIS_JOINT_ID = 8
 REF_NECK_JOINT_ID = 9
@@ -63,14 +63,14 @@ mocap_motions = [
   # ["jump01", "blender_data/data_joint_pos_dog_jump_high_001_420.txt",None,None],
   # ["jump01_new", "blender_data/data_joint_pos_dog_jump_high_001_515_low_height_shorter.txt",1,49],
   # ["jump01", "blender_data/data_joint_pos_dog_jump_002_90.txt",20,None],
-  ["highjump01_new", "blender_data/data_joint_pos_dog_jump_006_730.txt",5, None], # SIM_TOE_OFFSET_LOCAL: x: -0.05 for hind legs, y: -0.03, REF_POS_SCALE:0.97
+  # ["highjump01_new", "blender_data/data_joint_pos_dog_jump_006_730.txt",5, None], # SIM_TOE_OFFSET_LOCAL: x: -0.05 for hind legs, y: -0.03, REF_POS_SCALE:0.97
   # ["walk01", "blender_data/data_joint_pos_dog_quad_walk_001_3400.txt",None,None],
   # ["trot", "blender_data/data_joint_pos_dog_fast_run_02_004_1500_trot.txt",None,None], # NOTE: not available
   # ["slow_run", "blender_data/data_joint_pos_dog_fast_run_02_004_600_slowrun.txt",None,None], # forward_off: 0.03
   # ["walk02", "blender_data/data_joint_pos_dog_fast_run_02_004_2750_walk.txt",None,None], # forward_off: 0.03
   # ["trot01", "blender_data/data_joint_pos_dog_quad_walk_001_3900_trot.txt",None,None], # forward_off: 0.05
   # ["run01", "blender_data/data_joint_pos_dog_fast_run_02_004_1000.txt",None,None], # forward_off: 0.03, scale: 1.1, tough
-  # ["walk03", "blender_data/data_joint_pos_dog_quad_walk_001_3600.txt",None,None], # forward_off: 0.03  
+  ["walk03", "blender_data/data_joint_pos_dog_quad_walk_001_3600.txt",None,None], # forward_off: 0.03  
   # ["leftturn", "blender_data/data_joint_pos_dog_quad_walk_001_4250_leftturn.txt",None,None], # shitty
   # ["rightturn01", "blender_data/data_joint_pos_dog_quad_walk_001_10350_rightturn.txt",None,None], # not bad, forward_off: 0.03, scale: 1.1
   # ["rightturn02", "blender_data/data_joint_pos_dog_quad_walk_001_10650_rightturn.txt",None,None], # good, forward_off: 0.03, scale: 1.1
@@ -537,15 +537,15 @@ def preprocess_foot_base_pos_z(orig_tar_toe_pos_list, orig_base_pos_list):
   tar_toe_pos_list = orig_tar_toe_pos_list.copy()
   base_pos_list = orig_base_pos_list.copy()
   # highjump01_new
-  base_orig_height = 0.45
-  base_height_scale = 0.7
-  foot_height_scale = np.array([0.5, 0.5, 0.5, 0.5])
-  jumping_frames = np.array([16, 28, 20, 28]) # LF, LH, RF, RH # highjump01_new
+  # base_orig_height = 0.45
+  # base_height_scale = 0.7
+  # foot_height_scale = np.array([0.5, 0.5, 0.5, 0.5])
+  # jumping_frames = np.array([16, 28, 20, 28]) # LF, LH, RF, RH # highjump01_new
   # jump01_new
-  # base_orig_height = 0.6
-  # base_height_scale = 0.5
-  # foot_height_scale = np.array([0.7, 0.5, 0.7, 0.5])
-  # jumping_frames = np.array([0, 11, 0, 11]) # LF, LH, RF, RH # jump01_new
+  base_orig_height = 0.6
+  base_height_scale = 0.5
+  foot_height_scale = np.array([0.7, 0.5, 0.7, 0.5])
+  jumping_frames = np.array([0, 11, 0, 11]) # LF, LH, RF, RH # jump01_new
   base_pos_list[:, 2] = (base_pos_list[:, 2] - base_orig_height) * base_height_scale + base_orig_height # 0.4 is the original height of base
   tar_toe_pos_min = np.min(tar_toe_pos_list[:, :, 2], axis=0)
   # tar_toe_pos_max = np.max(tar_toe_pos_list[:, :, 2], axis=0)
@@ -563,9 +563,9 @@ def preprocess_foot_base_pos_xy(orig_tar_toe_pos_list, orig_base_pos_list):
   tar_toe_pos_list = orig_tar_toe_pos_list.copy()
   base_pos_list = orig_base_pos_list.copy()
   # highjump01_new
-  xy_scale = 0.7
+  # xy_scale = 0.7
   # jump01_new
-  # xy_scale = 0.6
+  xy_scale = 0.6
   local_tar_toe_pos_list = tar_toe_pos_list - base_pos_list[:, :3].reshape(-1, 1, 3)
   base_pos_list[:, :2] = (base_pos_list[:, :2] - base_pos_list[0, :2]) * xy_scale + base_pos_list[0, :2]
   global_tar_toe_pos_list = local_tar_toe_pos_list + base_pos_list[:, :3].reshape(-1, 1, 3)
@@ -625,7 +625,7 @@ def main(argv):
       retarget_frames, saved_frames = retarget_motion(robot, joint_pos_data, mocap_motion[0])
       f = 0
       num_frames = joint_pos_data.shape[0]
-      max_frames = num_frames * 5 # 10000 # 200 # max(150, num_frames)
+      max_frames = num_frames * 6 # 10000 # 200 # max(150, num_frames)
       # max_frames = 10000
       # for _ in range (min(5*num_frames, max_frames)):
       if OUTPUT:

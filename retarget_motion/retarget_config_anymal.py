@@ -2,7 +2,7 @@ import numpy as np
 
 URDF_FILENAME = "retarget_motion/anymal_d/urdf/anymal_d.urdf"
 
-REF_POS_SCALE = 1.3 # 1.2 is very good!, 1.4 is also good
+REF_POS_SCALE = 0.8 # 1.2 is very good!, 1.4 is also good
 INIT_POS = np.array([0, 0, 0.66])
 INIT_ROT = np.array([0, 0, 0, 1.0])
 
@@ -14,12 +14,18 @@ SIM_TOE_JOINT_IDS = [
 ]
 SIM_HIP_JOINT_IDS = [40, 62, 29, 51]
 SIM_ROOT_OFFSET = np.array([0, 0, 0.00])
+# SIM_TOE_OFFSET_LOCAL = [
+#     np.array([0, -0.03, 0.0]), # default y: -0.05
+#     np.array([-0.1, -0.03, 0.0]),
+#     np.array([0, 0.03, 0.0]), # default y: 0.05
+#     np.array([-0.1, 0.03, 0.0])
+# ]
 SIM_TOE_OFFSET_LOCAL = [
-    np.array([0, -0.03, 0.0]), # default y: -0.05
-    np.array([-0.1, -0.03, 0.0]),
-    np.array([0, 0.03, 0.0]), # default y: 0.05
-    np.array([-0.1, 0.03, 0.0])
-]
+    np.array([0.03, -0.06, 0.0]), # default y: -0.05
+    np.array([-0.02, -0.06, 0.0]),
+    np.array([0.03, 0.06, 0.0]), # default y: 0.05
+    np.array([-0.02, 0.06, 0.0])
+] # trot
 JOINT_RANGE = np.array([1.6, 3.4, 3, 1.6, 3.4, 3, 1.6, 3.4, 3, 1.6, 3.4, 3])
 
 DEFAULT_JOINT_POSE = np.array([-0.13859, 0.480936, -0.761428,    # FL
